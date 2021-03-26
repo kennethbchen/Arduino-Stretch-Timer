@@ -1,5 +1,3 @@
-#include <SharpIR.h>
-
 // ----- PINS -----
 const int redPin = 12;
 const int greenPin = 11;
@@ -15,11 +13,13 @@ const int irInput = A0;
 // ---- STATE -----
 
 bool enabled = false;
+bool sitting = false;
 bool buttonPressed = false;
 bool shouldStretch = false;
 
 // Seconds
 float lastStretchTime = 0;
+
 
 // ----------------
 // --- SETTINGS ---
@@ -30,10 +30,8 @@ const float stretchInterval = 4;
 // Seconds, Duration of stretch break
 const float stretchDuration = 30;
 
-const int irModel = 1;
 // ----------------
 
-SharpIR sensor(irModel, irInput);
 
 void setup() {
   Serial.begin(9600);
@@ -51,12 +49,10 @@ void setup() {
   //pinMode(irInput, INPUT_PULLUP);
 
   // Set last stretch time
-  lastStretchTime = millis();
+  lastStretchTime = getTimeInSeconds(millis());
 }
 
 void loop() {
-  // 13.0 * pow(analogRead(irInput) * (5.0 / 1023.0), -1)
-  Serial.println(sensor.getDistance());
   
   // Detect if the power button is being pressed
   if (digitalRead(powerButtonPin) == 1 && !buttonPressed) {
@@ -74,9 +70,11 @@ void loop() {
       lastStretchTime = getTimeInSeconds(millis());
     }
 
+    /*
     Serial.print(digitalRead(powerButtonPin));
     Serial.print(lastStretchTime);
     Serial.println();
+    */
   }
 
   // Reset the power button pressed state
@@ -86,22 +84,57 @@ void loop() {
 
   // If the timer is on, then keep track
   if (enabled) {
-    
-    // Interpolate led color based on time till next stretch break
-    writeLED();
 
-    // If it is time for a stretch break
-    if (getTimeInSeconds(millis()) - lastStretchTime > stretchInterval) {
-      shouldStretch = true;
+    // Get distance of the IR sensor to detect if sitting
+    float distance = 13.0 * pow(analogRead(irInput) * (5.0 / 1023.0), -1);
+    Serial.println(distance);
+  
+    if( distance < 12) {
+      sitting = true;
     } else {
-      shouldStretch = false;
+      sitting = false;
     }
 
-    if (shouldStretch) {
+    
+    if (!shouldStretch) {
+      // Interpolate led color based on time till next stretch break
+      writeLED();
+    }
+
+    
+    // If sitting, start detecting time 
+    if(sitting) {
+
+      // If it is time for a stretch break
+      if (getTimeInSeconds(millis()) - lastStretchTime > stretchInterval) {
+        shouldStretch = true;
+      } else {
+        shouldStretch = false;
+      }
+      
+    } else {
+      // Not sitting, reset the timer
+
+      // Reset Stretch Time
+      lastStretchTime = getTimeInSeconds(millis());
+    }
+
+    if (shouldStretch && sitting) {
       digitalWrite(motorPin, HIGH);
     } else {
       digitalWrite(motorPin, LOW);
     }
+
+    // Got up after sitting, reset stretch timer
+    if (shouldStretch && !sitting) {
+      shouldStretch = false;
+
+      // Reset Stretch Time
+      lastStretchTime = getTimeInSeconds(millis());
+      
+    }
+
+    
     
   } else {
     // If timer is off, turn LED off
@@ -133,7 +166,6 @@ void writeLED() {
   float proportionLeft = min((float) (getTimeInSeconds(millis()) - lastStretchTime) / stretchInterval, 1);
 
   if ( proportionLeft < 1.0 ) {
-    Serial.println(proportionLeft);
     setLED((int) (255 * (proportionLeft)), (int) (255 * (1 - proportionLeft)), 0);
   }
 
