@@ -1,3 +1,5 @@
+#include <SharpIR.h>
+
 // ----- PINS -----
 const int redPin = 12;
 const int greenPin = 11;
@@ -5,6 +7,10 @@ const int bluePin = 10;
 
 const int powerButtonPin = 5;
 const int stretchButtonPin = 6;
+
+const int motorPin = 4;
+
+const int irInput = A0;
 
 // ----------------
 // ---- STATE -----
@@ -18,15 +24,17 @@ float lastStretchTime = 0;
 
 // ----------------
 // --- SETTINGS ---
+
 // Seconds, Time between stretch breaks
-const float stretchInterval = 10;
+const float stretchInterval = 4;
 
 // Seconds, Duration of stretch break
-const 
-float stretchDuration = 30;
+const float stretchDuration = 30;
 
+const int irModel = 1;
 // ----------------
 
+SharpIR sensor(irModel, irInput);
 
 void setup() {
   Serial.begin(9600);
@@ -39,12 +47,19 @@ void setup() {
   pinMode(powerButtonPin, INPUT_PULLUP);
   pinMode(stretchButtonPin, INPUT_PULLUP);
 
+  pinMode(motorPin, OUTPUT);
+
+  
+  //pinMode(irInput, INPUT_PULLUP);
+
   // Set last stretch time
   lastStretchTime = millis();
 }
 
 void loop() {
-
+  // 13.0 * pow(analogRead(irInput) * (5.0 / 1023.0), -1)
+  Serial.println(sensor.getDistance());
+  
   // Detect if the power button is being pressed
   if (digitalRead(powerButtonPin) == 1 && !buttonPressed) {
 
@@ -87,15 +102,25 @@ void loop() {
     // If it is time for a stretch break
     if (getTimeInSeconds(millis()) - lastStretchTime > stretchInterval) {
       shouldStretch = true;
+    } else {
+      shouldStretch = false;
     }
 
     if (shouldStretch) {
-      
+      digitalWrite(motorPin, HIGH);
+    } else {
+      digitalWrite(motorPin, LOW);
     }
     
   } else {
     // If timer is off, turn LED off
     setLED(0, 0, 0);
+
+    // Set shouldStretch to false
+    shouldStretch = false;
+
+    // Turn off the vibration motor if it was on
+    digitalWrite(motorPin, LOW);
   }
 
 
