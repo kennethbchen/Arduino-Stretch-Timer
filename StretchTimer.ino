@@ -6,7 +6,6 @@ const int greenPin = 11;
 const int bluePin = 10;
 
 const int powerButtonPin = 5;
-const int stretchButtonPin = 6;
 
 const int motorPin = 4;
 
@@ -45,7 +44,6 @@ void setup() {
   pinMode(bluePin, OUTPUT);
 
   pinMode(powerButtonPin, INPUT_PULLUP);
-  pinMode(stretchButtonPin, INPUT_PULLUP);
 
   pinMode(motorPin, OUTPUT);
 
@@ -88,13 +86,6 @@ void loop() {
 
   // If the timer is on, then keep track
   if (enabled) {
-
-    // If the stretch button pin is pressed
-    if (digitalRead(stretchButtonPin)) {
-
-      // Reset last stretch time to current time
-      lastStretchTime = getTimeInSeconds(millis());
-    }
     
     // Interpolate led color based on time till next stretch break
     writeLED();
@@ -122,7 +113,6 @@ void loop() {
     // Turn off the vibration motor if it was on
     digitalWrite(motorPin, LOW);
   }
-
 
 
 }
