@@ -12,23 +12,30 @@ const int irInput = A0;
 // ----------------
 // ---- STATE -----
 
+bool powerButtonPressed = false;
 bool enabled = false;
 bool sitting = false;
-bool buttonPressed = false;
 bool shouldStretch = false;
+bool stretching = false;
 
 // Seconds
 float lastStretchTime = 0;
 
+// Seconds
+float stretchStart = 0;
 
 // ----------------
 // --- SETTINGS ---
 
 // Seconds, Time between stretch breaks
-const float stretchInterval = 4;
+const float stretchInterval = 30 * 60;
 
 // Seconds, Duration of stretch break
 const float stretchDuration = 30;
+
+const int red[] {255, 0, 0};
+const int green[] {0, 255, 0};
+const int blue[] {0, 0, 255};
 
 // ----------------
 
@@ -55,10 +62,10 @@ void setup() {
 void loop() {
   
   // Detect if the power button is being pressed
-  if (digitalRead(powerButtonPin) == 1 && !buttonPressed) {
+  if (digitalRead(powerButtonPin) == 1 && !powerButtonPressed) {
 
     // Used to make each whole button press only excecute once
-    buttonPressed = true;
+    powerButtonPressed = true;
 
     // Toggle on / off status
     if (enabled) {
@@ -78,16 +85,20 @@ void loop() {
   }
 
   // Reset the power button pressed state
-  if (digitalRead(powerButtonPin) == 0 && buttonPressed) {
-    buttonPressed = false;
+  if (digitalRead(powerButtonPin) == 0 && powerButtonPressed) {
+    powerButtonPressed = false;
   }
 
   // If the timer is on, then keep track
-  if (enabled) {
 
+  // hard code enabled because button does not work
+  if (true) {
+    Serial.println("sitting " + String(sitting) + " | shouldStretch " + String(shouldStretch) + " | stretching " + String(stretching));
+    
+    
     // Get distance of the IR sensor to detect if sitting
     float distance = 13.0 * pow(analogRead(irInput) * (5.0 / 1023.0), -1);
-    Serial.println(distance);
+    
   
     if( distance < 12) {
       sitting = true;
@@ -98,7 +109,10 @@ void loop() {
     
     if (!shouldStretch) {
       // Interpolate led color based on time till next stretch break
-      writeLED();
+      interpolateLED(green, 
+                     red, 
+                     min((float) (getTimeInSeconds(millis()) - lastStretchTime) / stretchInterval, 1),
+                     0.5);
     }
 
     
@@ -112,29 +126,56 @@ void loop() {
         shouldStretch = false;
       }
       
-    } else {
+    } else if (!sitting && !shouldStretch) {
       // Not sitting, reset the timer
-
-      // Reset Stretch Time
       lastStretchTime = getTimeInSeconds(millis());
     }
 
     if (shouldStretch && sitting) {
+      // Time to stretch, motor on
       digitalWrite(motorPin, HIGH);
+      delay(1000);
+      digitalWrite(motorPin, LOW);
+      delay(1000);
     } else {
+      // Else, motor off
       digitalWrite(motorPin, LOW);
     }
 
-    // Got up after sitting, reset stretch timer
-    if (shouldStretch && !sitting) {
-      shouldStretch = false;
+    // Got up after sitting
+    if (shouldStretch && !sitting && !stretching) {
+      stretching = true;
 
-      // Reset Stretch Time
-      lastStretchTime = getTimeInSeconds(millis());
+      // Set stretch start
+      stretchStart = getTimeInSeconds(millis());
       
+    } else if (shouldStretch && sitting) {
+      stretching = false;
     }
 
-    
+    if (shouldStretch && !sitting) {
+
+      interpolateLED(blue, 
+                     green, 
+                     min((float) (getTimeInSeconds(millis()) - stretchStart) / stretchDuration, 1),
+                     0.5);
+
+      // Check if time stretching is at least the stretch duration
+      if( getTimeInSeconds(millis()) - stretchStart > stretchDuration) {
+
+        // Stretch Successful, reset
+        shouldStretch = false;
+        stretching = false;
+
+        // Not sitting, reset the timer
+        lastStretchTime = getTimeInSeconds(millis());
+
+        setLED(0, 0, 0);
+        delay(1000);
+        
+      }
+      
+    }
     
   } else {
     // If timer is off, turn LED off
@@ -160,14 +201,10 @@ void setLED(int red_light_value, int green_light_value, int blue_light_value) {
   analogWrite(bluePin, blue_light_value);
 }
 
-void writeLED() {
-
-  // Calculate value between 0.0 and 1.0 that indicates percentage of stretch interval passed
-  float proportionLeft = min((float) (getTimeInSeconds(millis()) - lastStretchTime) / stretchInterval, 1);
-
-  if ( proportionLeft < 1.0 ) {
-    setLED((int) (255 * (proportionLeft)), (int) (255 * (1 - proportionLeft)), 0);
+void interpolateLED(int from[], int to[], float proportion, float brightness) {
+  if ( proportion < 1.0 ) {
+    setLED(  (int) ( (( from[0] * (1 - proportion) ) + (int) (to[0] * proportion)) * brightness  ) ,
+             (int) ( (( from[1] * (1 - proportion) ) + (int) (to[1] * proportion)) * brightness  ) ,
+             (int) ( (( from[2] * (1 - proportion) ) + (int) (to[2] * proportion)) * brightness  ) );
   }
-
-
 }
