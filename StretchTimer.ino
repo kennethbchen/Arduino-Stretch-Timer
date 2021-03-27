@@ -17,12 +17,16 @@ bool enabled = false;
 bool sitting = false;
 bool shouldStretch = false;
 bool stretching = false;
+bool paused = false;
 
 // Seconds
 float lastStretchTime = 0;
 
 // Seconds
 float stretchStart = 0;
+
+// Seconds
+float timePaused = 0;
 
 // ----------------
 // --- SETTINGS ---
@@ -93,7 +97,9 @@ void loop() {
 
   // hard code enabled because button does not work
   if (true) {
-    Serial.println("sitting " + String(sitting) + " | shouldStretch " + String(shouldStretch) + " | stretching " + String(stretching));
+    
+    //Serial.println(paused);
+    //Serial.println("paused " + String(paused) + " | sitting " + String(sitting) + " | shouldStretch " + String(shouldStretch) + " | stretching " + String(stretching));
     
     
     // Get distance of the IR sensor to detect if sitting
@@ -107,7 +113,7 @@ void loop() {
     }
 
     
-    if (!shouldStretch) {
+    if (!shouldStretch && !paused) {
       // Interpolate led color based on time till next stretch break
       interpolateLED(green, 
                      red, 
@@ -119,6 +125,14 @@ void loop() {
     // If sitting, start detecting time 
     if(sitting) {
 
+      // If paused, then update the last stretch time
+      if (paused) {
+        lastStretchTime = getTimeInSeconds(millis()) - (timePaused - lastStretchTime);
+
+        paused = false;
+        timePaused = 0;
+      }
+      
       // If it is time for a stretch break
       if (getTimeInSeconds(millis()) - lastStretchTime > stretchInterval) {
         shouldStretch = true;
@@ -127,8 +141,17 @@ void loop() {
       }
       
     } else if (!sitting && !shouldStretch) {
-      // Not sitting, reset the timer
-      lastStretchTime = getTimeInSeconds(millis());
+      // Not sitting, pause
+
+      if (!paused) {
+        timePaused = getTimeInSeconds(millis());
+      }
+      
+      paused = true;
+
+      
+      
+
     }
 
     if (shouldStretch && sitting) {
