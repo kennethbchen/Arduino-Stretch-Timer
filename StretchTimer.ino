@@ -2,6 +2,8 @@
 #include <AverageValue.h>
 
 // ----- PINS -----
+
+// LED Pins
 const int redPin = 12;
 const int greenPin = 11;
 const int bluePin = 10;
@@ -12,6 +14,9 @@ const int motorPin = 4;
 
 const int irInput = A0;
 
+// Seconds
+const float motorCycleTime = 0.75;
+
 // ----------------
 // ---- STATE -----
 
@@ -21,6 +26,7 @@ bool sitting = false;
 bool shouldStretch = false;
 bool stretching = false;
 bool paused = false;
+bool motorOn = false;
 
 // Seconds
 float lastStretchTime = 0;
@@ -31,7 +37,13 @@ float stretchStart = 0;
 // Seconds
 float timePaused = 0;
 
+// Seconds
+float motorActionTime = -1;
+
+// Running average of IR measurements
 AverageValue<float> ave(30);
+
+
 
 // ----------------
 // --- SETTINGS ---
@@ -103,7 +115,6 @@ void loop() {
   // hard code enabled because button does not work
   if (true) {
     
-    //Serial.println(paused);
     //Serial.println("paused " + String(paused) + " | sitting " + String(sitting) + " | shouldStretch " + String(shouldStretch) + " | stretching " + String(stretching));
     
     
@@ -111,7 +122,7 @@ void loop() {
     float distance = 13.0 * pow(analogRead(irInput) * (5.0 / 1023.0), -1);
     ave.push(distance);
 
-    Serial.println(String(ave.average()));
+    //Serial.println(String(ave.average()));
     
     if( ave.average() < 10) {
       
@@ -164,14 +175,35 @@ void loop() {
 
     if (shouldStretch && sitting) {
       // Time to stretch, motor on
+    
+      // Motor has been on or off for one second, toggle motor
+      if (getTimeInSeconds(millis()) - motorActionTime >= motorCycleTime) {
+
+         motorActionTime = getTimeInSeconds(millis());
+         
+         // Toggle Motor
+         if (motorOn) {
+            motorOn = false;
+            digitalWrite(motorPin, LOW);
+         } else {
+            motorOn = true;
+            digitalWrite(motorPin, HIGH);
+         }
+         
+      } else if (motorActionTime == -1) {
+        // Motor action time needs to be reset
+        motorActionTime = getTimeInSeconds(millis());
+      }
       
-      digitalWrite(motorPin, HIGH);
 
       
     } else {
       // Else, motor off
+      
+      motorActionTime = -1;
       digitalWrite(motorPin, LOW);
     }
+
 
     // Got up after sitting
     if (shouldStretch && !sitting && !stretching) {
