@@ -1,3 +1,6 @@
+//https://gitlab.com/yesbotics/libs/arduino/average-value
+#include <AverageValue.h>
+
 // ----- PINS -----
 const int redPin = 12;
 const int greenPin = 11;
@@ -27,6 +30,8 @@ float stretchStart = 0;
 
 // Seconds
 float timePaused = 0;
+
+AverageValue<float> ave(30);
 
 // ----------------
 // --- SETTINGS ---
@@ -104,9 +109,12 @@ void loop() {
     
     // Get distance of the IR sensor to detect if sitting
     float distance = 13.0 * pow(analogRead(irInput) * (5.0 / 1023.0), -1);
+    ave.push(distance);
+
+    Serial.println(String(ave.average()));
     
-  
-    if( distance < 12) {
+    if( ave.average() < 10) {
+      
       sitting = true;
     } else {
       sitting = false;
@@ -156,10 +164,10 @@ void loop() {
 
     if (shouldStretch && sitting) {
       // Time to stretch, motor on
+      
       digitalWrite(motorPin, HIGH);
-      delay(1000);
-      digitalWrite(motorPin, LOW);
-      delay(1000);
+
+      
     } else {
       // Else, motor off
       digitalWrite(motorPin, LOW);
