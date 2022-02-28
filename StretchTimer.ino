@@ -28,6 +28,8 @@ bool stretching = false;
 bool paused = false;
 bool motorOn = false;
 
+bool debug = false;
+
 // Seconds
 float lastStretchTime = 0;
 
@@ -115,16 +117,22 @@ void loop() {
   // hard code enabled because button does not work
   if (true) {
     
-    //Serial.println("paused " + String(paused) + " | sitting " + String(sitting) + " | shouldStretch " + String(shouldStretch) + " | stretching " + String(stretching));
     
     
     // Get distance of the IR sensor to detect if sitting
-    float distance = 13.0 * pow(analogRead(irInput) * (5.0 / 1023.0), -1);
+    float distance = 29.988 * pow(analogRead(irInput) * (5.0 / 1023.0), -1.173);
     ave.push(distance);
 
-    //Serial.println(String(ave.average()));
+    if (debug) {
+      Serial.print("Measurement ");
+      Serial.print(String(ave.average()) + " | ");
     
-    if( ave.average() < 10) {
+      Serial.println("paused " + String(paused) + " | sitting " + String(sitting) + " | shouldStretch " + String(shouldStretch) + " | stretching " + String(stretching));
+    
+    }
+    
+    // Detect if sitting
+    if( ave.average() < 15) {
       
       sitting = true;
     } else {
@@ -136,8 +144,7 @@ void loop() {
       // Interpolate led color based on time till next stretch break
       interpolateLED(green, 
                      red, 
-                     min((float) (getTimeInSeconds(millis()) - lastStretchTime) / stretchInterval, 1),
-                     0.5);
+                     min((float) (getTimeInSeconds(millis()) - lastStretchTime) / stretchInterval, 1), 0.5);
     }
 
     
