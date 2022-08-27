@@ -28,7 +28,7 @@ bool stretching = false;
 bool paused = false;
 bool motorOn = false;
 
-bool debug = false;
+bool debug = true;
 
 // Seconds
 float lastStretchTime = 0;
@@ -145,6 +145,8 @@ void loop() {
       interpolateLED(green, 
                      red, 
                      min((float) (getTimeInSeconds(millis()) - lastStretchTime) / stretchInterval, 1), 0.5);
+    } else if (paused) {
+      setLED(255,0,255);
     }
 
     
