@@ -28,8 +28,6 @@ bool stretching = false;
 bool paused = false;
 bool motorOn = false;
 
-bool debug = true;
-
 // Seconds
 float lastStretchTime = 0;
 
@@ -43,18 +41,30 @@ float timePaused = 0;
 float motorActionTime = -1;
 
 // Running average of IR measurements
-AverageValue<float> ave(30);
+// Used to reduce noise in IR input
+// Slows down significantly if printing to serial
+AverageValue<float> ave(50);
 
 
 
 // ----------------
 // --- SETTINGS ---
 
-// Seconds, Time between stretch breaks
-const float stretchInterval = 30 * 60;
+// Don't leave on for actual use, it slows down IR poll rate or something
+#define PRINT_OUTPUT false
 
-// Seconds, Duration of stretch break
+// Debug mode shortens stretch times and durations
+#define DEBUG_MODE false
+
+// Seconds, Time between stretch breaks
+#if DEBUG_MODE
+const float stretchInterval = 5;
+const float stretchDuration = 5;
+#else
+const float stretchInterval = 30 * 60;
 const float stretchDuration = 30;
+#endif
+
 
 const int red[] {255, 0, 0};
 const int green[] {0, 255, 0};
@@ -123,13 +133,12 @@ void loop() {
     float distance = 29.988 * pow(analogRead(irInput) * (5.0 / 1023.0), -1.173);
     ave.push(distance);
 
-    if (debug) {
+    #if PRINT_OUTPUT
       Serial.print("Measurement ");
       Serial.print(String(ave.average()) + " | ");
     
       Serial.println("paused " + String(paused) + " | sitting " + String(sitting) + " | shouldStretch " + String(shouldStretch) + " | stretching " + String(stretching));
-    
-    }
+    #endif
     
     // Detect if sitting
     if( ave.average() < 15) {
@@ -183,6 +192,10 @@ void loop() {
     }
 
     if (shouldStretch && sitting) {
+
+      // Also set light to red.
+      setLED(255, 0, 0);
+      
       // Time to stretch, motor on
     
       // Motor has been on or off for one second, toggle motor
