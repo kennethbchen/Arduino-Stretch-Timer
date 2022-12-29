@@ -141,7 +141,7 @@ void loop() {
     #endif
     
     // Detect if sitting
-    if( ave.average() < 15) {
+    if( ave.average() < 12) {
       
       sitting = true;
     } else {
