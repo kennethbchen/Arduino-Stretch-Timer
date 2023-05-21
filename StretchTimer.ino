@@ -13,8 +13,30 @@ const int motorPin = 4;
 
 const int irInput = A0;
 
+// ----------------
+// --- SETTINGS ---
+
+// Don't leave on for actual use, it slows down arduino or something
+#define PRINT_OUTPUT false
+
+// Debug mode shortens stretch times and durations
+#define DEBUG_MODE false
+
+// Interval between stretches and duration of stretches in seconds
+#if DEBUG_MODE
+const float stretchInterval = 10;
+const float stretchDuration = 5;
+#else
+const float stretchInterval = 30 * 60;
+const float stretchDuration = 30;
+#endif
+
 // Seconds
 const float motorCycleTime = 0.75;
+
+// Value from 0 to 1
+// Brightness multiplier for LED
+const float globalBrightnessMultiplier = 0.2;
 
 // ----------------
 // ---- STATE -----
@@ -46,25 +68,6 @@ float motorActionTime = -1;
 // Used to reduce noise in IR input
 // Slows down significantly if printing to serial
 AverageValue<float> dist(50);
-
-
-// ----------------
-// --- SETTINGS ---
-
-// Don't leave on for actual use, it slows down arduino or something
-#define PRINT_OUTPUT false
-
-// Debug mode shortens stretch times and durations
-#define DEBUG_MODE false
-
-// Interval between stretches and duration of stretches in seconds
-#if DEBUG_MODE
-const float stretchInterval = 10;
-const float stretchDuration = 5;
-#else
-const float stretchInterval = 30 * 60;
-const float stretchDuration = 30;
-#endif
 
 // ----------------
 // ----- UTIL -----
@@ -231,15 +234,15 @@ float getTimeInSeconds(float milliseconds) {
 }
 
 void setLED(int red_light_value, int green_light_value, int blue_light_value) {
-  analogWrite(redPin, red_light_value);
-  analogWrite(greenPin, green_light_value);
-  analogWrite(bluePin, blue_light_value);
+  analogWrite(redPin, red_light_value * globalBrightnessMultiplier);
+  analogWrite(greenPin, green_light_value * globalBrightnessMultiplier);
+  analogWrite(bluePin, blue_light_value * globalBrightnessMultiplier);
 }
 
 void interpolateLED(int from[], int to[], float proportion, float brightness) {
   if ( proportion < 1.0 ) {
-    setLED(  (int) ( (( from[0] * (1 - proportion) ) + (int) (to[0] * proportion)) * brightness  ) ,
-             (int) ( (( from[1] * (1 - proportion) ) + (int) (to[1] * proportion)) * brightness  ) ,
-             (int) ( (( from[2] * (1 - proportion) ) + (int) (to[2] * proportion)) * brightness  ) );
+    setLED(  (int) ( ( ( from[0] * (1 - proportion) ) + (to[0] * proportion) ) * brightness ) ,
+             (int) ( ( ( from[1] * (1 - proportion) ) + (to[1] * proportion) ) * brightness ) ,
+             (int) ( ( ( from[2] * (1 - proportion) ) + (to[2] * proportion) ) * brightness ) );
   }
 }
