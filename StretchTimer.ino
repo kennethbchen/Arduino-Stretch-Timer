@@ -19,11 +19,15 @@ const float motorCycleTime = 0.75;
 // ----------------
 // ---- STATE -----
 
-bool enabled = false;
-bool sitting = false;
-bool shouldStretch = false;
-bool stretching = false;
-bool paused = false;
+enum State {
+  PAUSED,
+  SITTING,
+  REMINDING,
+  STRETCHING
+};
+
+State currentState = SITTING;
+
 bool motorOn = false;
 
 // Seconds
@@ -41,21 +45,21 @@ float motorActionTime = -1;
 // Running average of IR measurements
 // Used to reduce noise in IR input
 // Slows down significantly if printing to serial
-AverageValue<float> ave(50);
+AverageValue<float> dist(50);
 
 
 // ----------------
 // --- SETTINGS ---
 
-// Don't leave on for actual use, it slows down IR poll rate or something
+// Don't leave on for actual use, it slows down arduino or something
 #define PRINT_OUTPUT false
 
 // Debug mode shortens stretch times and durations
 #define DEBUG_MODE false
 
-// Seconds, Time between stretch breaks
+// Interval between stretches and duration of stretches in seconds
 #if DEBUG_MODE
-const float stretchInterval = 5;
+const float stretchInterval = 10;
 const float stretchDuration = 5;
 #else
 const float stretchInterval = 30 * 60;
@@ -82,75 +86,69 @@ void setup() {
 
   pinMode(motorPin, OUTPUT);
 
-  // Set last stretch time
   lastStretchTime = getTimeInSeconds(millis());
 }
 
 void loop() {
     
-  // Get distance of the IR sensor to detect if sitting
+  // Get distance of the IR sensor
   float distance = 29.988 * pow(analogRead(irInput) * (5.0 / 1023.0), -1.173);
-  ave.push(distance);
+  dist.push(distance);
   
   #if PRINT_OUTPUT
     Serial.print("Measurement ");
-    Serial.print(String(ave.average()) + " | ");
-  
-    Serial.println("paused " + String(paused) + " | sitting " + String(sitting) + " | shouldStretch " + String(shouldStretch) + " | stretching " + String(stretching));
+    Serial.print(String(dist.average()) + " | ");
   #endif
-  
-  // Detect if sitting
-  if( ave.average() < 12) {
+
+  // ----------------
+  // ---- PAUSED ----
+  if (currentState == PAUSED) {
     
-    sitting = true;
-  } else {
-    sitting = false;
+    setLED(255,0,255);
+
+    if (isSitting()) {
+      currentState = SITTING;
+
+      // If needed, modify lastStretchTime to ignore time paused 
+      if (timePaused != 0) {
+        lastStretchTime = getTimeInSeconds(millis()) - (timePaused - lastStretchTime);
+        timePaused = 0;
+      }
+      
+    }
+    
   }
+
+  // ----------------
+  // ---- SITTING ---
+  if (currentState == SITTING) {
   
-  if (!shouldStretch && !paused) {
     // Interpolate led color based on time till next stretch break
     interpolateLED(green, 
                    red, 
                    min((float) (getTimeInSeconds(millis()) - lastStretchTime) / stretchInterval, 1), 0.5);
-  } else if (paused) {
-    setLED(255,0,255);
-  }
-  
-  
-  // If sitting, start detecting time 
-  if(sitting) {
-  
-    // If paused, then update the last stretch time
-    if (paused) {
-      lastStretchTime = getTimeInSeconds(millis()) - (timePaused - lastStretchTime);
-  
-      paused = false;
-      timePaused = 0;
-    }
     
+
     // If it is time for a stretch break
     if (getTimeInSeconds(millis()) - lastStretchTime > stretchInterval) {
-      shouldStretch = true;
-    } else {
-      shouldStretch = false;
-    }
-    
-  } else if (!sitting && !shouldStretch) {
-    // Not sitting, pause
-  
-    if (!paused) {
+      
+      currentState = REMINDING;
+      
+    } else if (!isSitting()) {
+      
+      currentState = PAUSED;
       timePaused = getTimeInSeconds(millis());
+      
     }
-    
-    paused = true;
     
   }
-  
-  if (shouldStretch && sitting) {
-  
-    // Also set light to red.
+
+  // ----------------
+  // --- REMINDING --
+  if (currentState == REMINDING) {
+
     setLED(255, 0, 0);
-    
+
     // Time to stretch, motor on
   
     // Motor has been on or off for one second, toggle motor
@@ -172,53 +170,61 @@ void loop() {
       motorActionTime = getTimeInSeconds(millis());
     }
     
-  } else {
-    // Else, motor off
-    
-    motorActionTime = -1;
-    digitalWrite(motorPin, LOW);
-  }
-  
-  
-  // Got up after sitting
-  if (shouldStretch && !sitting && !stretching) {
-    stretching = true;
-  
-    // Set stretch start
-    stretchStart = getTimeInSeconds(millis());
-    
-  } else if (shouldStretch && sitting) {
-    stretching = false;
-  }
-  
-  if (shouldStretch && !sitting) {
-  
-    interpolateLED(blue, 
-                   green, 
-                   min((float) (getTimeInSeconds(millis()) - stretchStart) / stretchDuration, 1),
-                   0.5);
-  
-    // Check if time stretching is at least the stretch duration
-    if( getTimeInSeconds(millis()) - stretchStart > stretchDuration) {
-  
-      // Stretch Successful, reset
-      shouldStretch = false;
-      stretching = false;
-  
-      // Not sitting, reset the timer
-      lastStretchTime = getTimeInSeconds(millis());
-  
-      setLED(0, 0, 0);
-      delay(1000);
-      
+    if (!isSitting()) {
+
+      currentState = STRETCHING;
+
+      // Motor off
+      motorActionTime = -1;
+      digitalWrite(motorPin, LOW);
+
+      // Record stretch start time
+      stretchStart = getTimeInSeconds(millis());
+
     }
     
   }
 
+  // ----------------
+  // -- STRETCHING --
+  if (currentState == STRETCHING){
+    
+    interpolateLED(blue, 
+                       green, 
+                       min((float) (getTimeInSeconds(millis()) - stretchStart) / stretchDuration, 1),
+                       0.5);
+  
+    // Check if time stretching is at least the stretch duration
+
+    if (isSitting()) {
+
+      // Stretch hasn't been completed yet
+      currentState = REMINDING;
+      
+    } else if( getTimeInSeconds(millis()) - stretchStart > stretchDuration) {
+  
+      // Stretch Successful, reset
+      setLED(0, 0, 0);
+  
+      // Reset the timer
+      lastStretchTime = getTimeInSeconds(millis());
+
+      currentState = SITTING;
+      
+      delay(1000);
+    }
+    
+  }
+  
+    
 }
 
 // ----------------------
 // --- UTIL FUNCTIONS ---
+
+bool isSitting() {
+  return dist.average() < 12;
+}
 
 float getTimeInSeconds(float milliseconds) {
   return milliseconds / 1000;
