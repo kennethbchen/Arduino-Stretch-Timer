@@ -1,14 +1,13 @@
 //https://gitlab.com/yesbotics/libs/arduino/average-value
 #include <AverageValue.h>
 
+// ----------------
 // ----- PINS -----
 
 // LED Pins
 const int redPin = 12;
 const int greenPin = 11;
 const int bluePin = 10;
-
-const int powerButtonPin = 5;
 
 const int motorPin = 4;
 
@@ -20,7 +19,6 @@ const float motorCycleTime = 0.75;
 // ----------------
 // ---- STATE -----
 
-bool powerButtonPressed = false;
 bool enabled = false;
 bool sitting = false;
 bool shouldStretch = false;
@@ -46,7 +44,6 @@ float motorActionTime = -1;
 AverageValue<float> ave(50);
 
 
-
 // ----------------
 // --- SETTINGS ---
 
@@ -65,13 +62,15 @@ const float stretchInterval = 30 * 60;
 const float stretchDuration = 30;
 #endif
 
+// ----------------
+// ----- UTIL -----
 
 const int red[] {255, 0, 0};
 const int green[] {0, 255, 0};
 const int blue[] {0, 0, 255};
 
 // ----------------
-
+// ----------------
 
 void setup() {
   Serial.begin(9600);
@@ -81,200 +80,145 @@ void setup() {
   pinMode(greenPin, OUTPUT);
   pinMode(bluePin, OUTPUT);
 
-  pinMode(powerButtonPin, INPUT_PULLUP);
-
   pinMode(motorPin, OUTPUT);
-
-  
-  //pinMode(irInput, INPUT_PULLUP);
 
   // Set last stretch time
   lastStretchTime = getTimeInSeconds(millis());
 }
 
 void loop() {
+    
+  // Get distance of the IR sensor to detect if sitting
+  float distance = 29.988 * pow(analogRead(irInput) * (5.0 / 1023.0), -1.173);
+  ave.push(distance);
   
-  // Detect if the power button is being pressed
-  if (digitalRead(powerButtonPin) == 1 && !powerButtonPressed) {
-
-    // Used to make each whole button press only excecute once
-    powerButtonPressed = true;
-
-    // Toggle on / off status
-    if (enabled) {
-      enabled = false;
-    } else {
-      enabled = true;
-      
-      // Reset Stretch Time
-      lastStretchTime = getTimeInSeconds(millis());
-    }
-
-    /*
-    Serial.print(digitalRead(powerButtonPin));
-    Serial.print(lastStretchTime);
-    Serial.println();
-    */
+  #if PRINT_OUTPUT
+    Serial.print("Measurement ");
+    Serial.print(String(ave.average()) + " | ");
+  
+    Serial.println("paused " + String(paused) + " | sitting " + String(sitting) + " | shouldStretch " + String(shouldStretch) + " | stretching " + String(stretching));
+  #endif
+  
+  // Detect if sitting
+  if( ave.average() < 12) {
+    
+    sitting = true;
+  } else {
+    sitting = false;
   }
-
-  // Reset the power button pressed state
-  if (digitalRead(powerButtonPin) == 0 && powerButtonPressed) {
-    powerButtonPressed = false;
+  
+  if (!shouldStretch && !paused) {
+    // Interpolate led color based on time till next stretch break
+    interpolateLED(green, 
+                   red, 
+                   min((float) (getTimeInSeconds(millis()) - lastStretchTime) / stretchInterval, 1), 0.5);
+  } else if (paused) {
+    setLED(255,0,255);
   }
-
-  // If the timer is on, then keep track
-
-  // hard code enabled because button does not work
-  if (true) {
+  
+  
+  // If sitting, start detecting time 
+  if(sitting) {
+  
+    // If paused, then update the last stretch time
+    if (paused) {
+      lastStretchTime = getTimeInSeconds(millis()) - (timePaused - lastStretchTime);
+  
+      paused = false;
+      timePaused = 0;
+    }
     
-    
-    
-    // Get distance of the IR sensor to detect if sitting
-    float distance = 29.988 * pow(analogRead(irInput) * (5.0 / 1023.0), -1.173);
-    ave.push(distance);
-
-    #if PRINT_OUTPUT
-      Serial.print("Measurement ");
-      Serial.print(String(ave.average()) + " | ");
-    
-      Serial.println("paused " + String(paused) + " | sitting " + String(sitting) + " | shouldStretch " + String(shouldStretch) + " | stretching " + String(stretching));
-    #endif
-    
-    // Detect if sitting
-    if( ave.average() < 12) {
-      
-      sitting = true;
+    // If it is time for a stretch break
+    if (getTimeInSeconds(millis()) - lastStretchTime > stretchInterval) {
+      shouldStretch = true;
     } else {
-      sitting = false;
+      shouldStretch = false;
     }
-
     
-    if (!shouldStretch && !paused) {
-      // Interpolate led color based on time till next stretch break
-      interpolateLED(green, 
-                     red, 
-                     min((float) (getTimeInSeconds(millis()) - lastStretchTime) / stretchInterval, 1), 0.5);
-    } else if (paused) {
-      setLED(255,0,255);
+  } else if (!sitting && !shouldStretch) {
+    // Not sitting, pause
+  
+    if (!paused) {
+      timePaused = getTimeInSeconds(millis());
     }
-
     
-    // If sitting, start detecting time 
-    if(sitting) {
-
-      // If paused, then update the last stretch time
-      if (paused) {
-        lastStretchTime = getTimeInSeconds(millis()) - (timePaused - lastStretchTime);
-
-        paused = false;
-        timePaused = 0;
-      }
-      
-      // If it is time for a stretch break
-      if (getTimeInSeconds(millis()) - lastStretchTime > stretchInterval) {
-        shouldStretch = true;
-      } else {
-        shouldStretch = false;
-      }
-      
-    } else if (!sitting && !shouldStretch) {
-      // Not sitting, pause
-
-      if (!paused) {
-        timePaused = getTimeInSeconds(millis());
-      }
-      
-      paused = true;
-
-      
-      
-
-    }
-
-    if (shouldStretch && sitting) {
-
-      // Also set light to red.
-      setLED(255, 0, 0);
-      
-      // Time to stretch, motor on
+    paused = true;
     
-      // Motor has been on or off for one second, toggle motor
-      if (getTimeInSeconds(millis()) - motorActionTime >= motorCycleTime) {
-
-         motorActionTime = getTimeInSeconds(millis());
-         
-         // Toggle Motor
-         if (motorOn) {
-            motorOn = false;
-            digitalWrite(motorPin, LOW);
-         } else {
-            motorOn = true;
-            digitalWrite(motorPin, HIGH);
-         }
-         
-      } else if (motorActionTime == -1) {
-        // Motor action time needs to be reset
-        motorActionTime = getTimeInSeconds(millis());
-      }
-      
-
-      
-    } else {
-      // Else, motor off
-      
-      motorActionTime = -1;
-      digitalWrite(motorPin, LOW);
-    }
-
-
-    // Got up after sitting
-    if (shouldStretch && !sitting && !stretching) {
-      stretching = true;
-
-      // Set stretch start
-      stretchStart = getTimeInSeconds(millis());
-      
-    } else if (shouldStretch && sitting) {
-      stretching = false;
-    }
-
-    if (shouldStretch && !sitting) {
-
-      interpolateLED(blue, 
-                     green, 
-                     min((float) (getTimeInSeconds(millis()) - stretchStart) / stretchDuration, 1),
-                     0.5);
-
-      // Check if time stretching is at least the stretch duration
-      if( getTimeInSeconds(millis()) - stretchStart > stretchDuration) {
-
-        // Stretch Successful, reset
-        shouldStretch = false;
-        stretching = false;
-
-        // Not sitting, reset the timer
-        lastStretchTime = getTimeInSeconds(millis());
-
-        setLED(0, 0, 0);
-        delay(1000);
-        
-      }
-      
+  }
+  
+  if (shouldStretch && sitting) {
+  
+    // Also set light to red.
+    setLED(255, 0, 0);
+    
+    // Time to stretch, motor on
+  
+    // Motor has been on or off for one second, toggle motor
+    if (getTimeInSeconds(millis()) - motorActionTime >= motorCycleTime) {
+  
+       motorActionTime = getTimeInSeconds(millis());
+       
+       // Toggle Motor
+       if (motorOn) {
+          motorOn = false;
+          digitalWrite(motorPin, LOW);
+       } else {
+          motorOn = true;
+          digitalWrite(motorPin, HIGH);
+       }
+       
+    } else if (motorActionTime == -1) {
+      // Motor action time needs to be reset
+      motorActionTime = getTimeInSeconds(millis());
     }
     
   } else {
-    // If timer is off, turn LED off
-    setLED(0, 0, 0);
-
-    // Set shouldStretch to false
-    shouldStretch = false;
-
-    // Turn off the vibration motor if it was on
+    // Else, motor off
+    
+    motorActionTime = -1;
     digitalWrite(motorPin, LOW);
   }
-
+  
+  
+  // Got up after sitting
+  if (shouldStretch && !sitting && !stretching) {
+    stretching = true;
+  
+    // Set stretch start
+    stretchStart = getTimeInSeconds(millis());
+    
+  } else if (shouldStretch && sitting) {
+    stretching = false;
+  }
+  
+  if (shouldStretch && !sitting) {
+  
+    interpolateLED(blue, 
+                   green, 
+                   min((float) (getTimeInSeconds(millis()) - stretchStart) / stretchDuration, 1),
+                   0.5);
+  
+    // Check if time stretching is at least the stretch duration
+    if( getTimeInSeconds(millis()) - stretchStart > stretchDuration) {
+  
+      // Stretch Successful, reset
+      shouldStretch = false;
+      stretching = false;
+  
+      // Not sitting, reset the timer
+      lastStretchTime = getTimeInSeconds(millis());
+  
+      setLED(0, 0, 0);
+      delay(1000);
+      
+    }
+    
+  }
 
 }
+
+// ----------------------
+// --- UTIL FUNCTIONS ---
 
 float getTimeInSeconds(float milliseconds) {
   return milliseconds / 1000;
