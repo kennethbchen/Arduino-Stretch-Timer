@@ -32,7 +32,7 @@ const float stretchDuration = 30;
 #endif
 
 // Seconds
-const float motorCycleTime = 0.75;
+const float motorCycleTime = 1.12;
 
 // Value from 0 to 1
 // Brightness multiplier for LED
@@ -67,7 +67,7 @@ float motorActionTime = -1;
 // Running average of IR measurements
 // Used to reduce noise in IR input
 // Slows down significantly if printing to serial
-AverageValue<float> dist(50);
+AverageValue<double> dist(100);
 
 // ----------------
 // ----- UTIL -----
@@ -95,8 +95,7 @@ void setup() {
 void loop() {
     
   // Get distance of the IR sensor
-  float distance = 29.988 * pow(analogRead(irInput) * (5.0 / 1023.0), -1.173);
-  dist.push(distance);
+  dist.push(analogRead(irInput));
   
   #if PRINT_OUTPUT
     Serial.print("Measurement ");
@@ -226,7 +225,8 @@ void loop() {
 // --- UTIL FUNCTIONS ---
 
 bool isSitting() {
-  return dist.average() < 12;
+  // dist.average should be within 0-1023 or something (based on output of analog read)
+  return dist.average() > 500 ;
 }
 
 float getTimeInSeconds(float milliseconds) {
