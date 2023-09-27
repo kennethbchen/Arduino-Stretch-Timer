@@ -10,11 +10,14 @@ const int greenPin = 11;
 const int bluePin = 10;
 
 const int motorPin = 4;
-const int buttonPin = 5;
+
+const int snoozeButtonPin = 5;
 
 const int irInput = A0;
 
-
+// Because of Pin type INPUT_PULLUP, when the button is pressed,
+// Its read value is false
+const bool snoozeButtonPressedValue = false;
 
 // ----------------
 // --- SETTINGS ---
@@ -29,9 +32,11 @@ const int irInput = A0;
 #if DEBUG_MODE
 const float stretchInterval = 10;
 const float stretchDuration = 5;
+const float snoozeStretchInterval = 16;
 #else
 const float stretchInterval = 30 * 60;
 const float stretchDuration = 30;
+const float snoozeStretchInterval = 5 * 60;
 #endif
 
 // Seconds
@@ -54,6 +59,9 @@ enum State {
 State currentState = SITTING;
 
 bool motorOn = false;
+
+// Seconds
+float currentStretchInterval = stretchInterval;
 
 // Seconds
 float lastStretchTime = 0;
@@ -83,6 +91,7 @@ const int blue[] {0, 0, 255};
 // ----------------
 
 void setup() {
+  
   Serial.begin(9600);
 
   // Setup pins
@@ -91,14 +100,22 @@ void setup() {
   pinMode(bluePin, OUTPUT);
 
   pinMode(motorPin, OUTPUT);
-  pinMode(buttonPin, INPUT_PULLUP);
+  pinMode(snoozeButtonPin, INPUT_PULLUP);
 
   lastStretchTime = getTimeInSeconds(millis());
+}
+
+void setMotorOff() {
+  // Motor off
+  motorActionTime = -1;
+  digitalWrite(motorPin, LOW);
 }
 
 void changeToSitting() {
   currentState = SITTING;
 
+  setMotorOff();
+  
   // If needed, modify lastStretchTime to ignore time paused 
   if (timePaused != 0) {
     lastStretchTime = getTimeInSeconds(millis()) - (timePaused - lastStretchTime);
@@ -118,9 +135,7 @@ void changeToReminding() {
 void changeToStretching() {
   currentState = STRETCHING;
 
-  // Motor off
-  motorActionTime = -1;
-  digitalWrite(motorPin, LOW);
+  setMotorOff();
 
   // Record stretch start time
   stretchStart = getTimeInSeconds(millis());
@@ -159,7 +174,7 @@ void loop() {
     
 
     // If it is time for a stretch break
-    if (getTimeInSeconds(millis()) - lastStretchTime > stretchInterval) {
+    if (getTimeInSeconds(millis()) - lastStretchTime > currentStretchInterval) {
       
       changeToReminding();
       
@@ -197,8 +212,25 @@ void loop() {
       // Motor action time needs to be reset
       motorActionTime = getTimeInSeconds(millis());
     }
-    
-    if (!isSitting()) {
+
+    // Check if snooze button is pressed
+    if (digitalRead(snoozeButtonPin) == snoozeButtonPressedValue) {
+
+      if (currentStretchInterval != stretchInterval) {
+        // Snooze has been pressed before this cycle
+        // Snooze has diminishing returns
+        currentStretchInterval *= 0.3;
+      } else {
+        // Snooze has not been pressed before this cycle
+        currentStretchInterval = snoozeStretchInterval;
+      }
+      
+      // Reset the timer
+      lastStretchTime = getTimeInSeconds(millis());
+      
+      changeToSitting();
+      
+    } else if (!isSitting()) {
 
       changeToStretching();
 
@@ -226,6 +258,8 @@ void loop() {
   
       // Stretch Successful, reset
       setLED(0, 0, 0);
+
+      currentStretchInterval = stretchInterval;
   
       // Reset the timer
       lastStretchTime = getTimeInSeconds(millis());
