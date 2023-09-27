@@ -96,6 +96,36 @@ void setup() {
   lastStretchTime = getTimeInSeconds(millis());
 }
 
+void changeToSitting() {
+  currentState = SITTING;
+
+  // If needed, modify lastStretchTime to ignore time paused 
+  if (timePaused != 0) {
+    lastStretchTime = getTimeInSeconds(millis()) - (timePaused - lastStretchTime);
+    timePaused = 0;
+  }
+}
+
+void changeToPaused() {
+  currentState = PAUSED;
+  timePaused = getTimeInSeconds(millis());
+}
+
+void changeToReminding() {
+  currentState = REMINDING;
+}
+
+void changeToStretching() {
+  currentState = STRETCHING;
+
+  // Motor off
+  motorActionTime = -1;
+  digitalWrite(motorPin, LOW);
+
+  // Record stretch start time
+  stretchStart = getTimeInSeconds(millis());
+}
+
 void loop() {
   
   // Get distance of the IR sensor
@@ -113,14 +143,7 @@ void loop() {
     setLED(255,0,255);
 
     if (isSitting()) {
-      currentState = SITTING;
-
-      // If needed, modify lastStretchTime to ignore time paused 
-      if (timePaused != 0) {
-        lastStretchTime = getTimeInSeconds(millis()) - (timePaused - lastStretchTime);
-        timePaused = 0;
-      }
-      
+      changeToSitting();
     }
     
   }
@@ -138,12 +161,11 @@ void loop() {
     // If it is time for a stretch break
     if (getTimeInSeconds(millis()) - lastStretchTime > stretchInterval) {
       
-      currentState = REMINDING;
+      changeToReminding();
       
     } else if (!isSitting()) {
       
-      currentState = PAUSED;
-      timePaused = getTimeInSeconds(millis());
+      changeToPaused();
       
     }
     
@@ -178,14 +200,7 @@ void loop() {
     
     if (!isSitting()) {
 
-      currentState = STRETCHING;
-
-      // Motor off
-      motorActionTime = -1;
-      digitalWrite(motorPin, LOW);
-
-      // Record stretch start time
-      stretchStart = getTimeInSeconds(millis());
+      changeToStretching();
 
     }
     
@@ -205,7 +220,7 @@ void loop() {
     if (isSitting()) {
 
       // Stretch hasn't been completed yet
-      currentState = REMINDING;
+      changeToReminding();
       
     } else if( getTimeInSeconds(millis()) - stretchStart > stretchDuration) {
   
@@ -215,7 +230,7 @@ void loop() {
       // Reset the timer
       lastStretchTime = getTimeInSeconds(millis());
 
-      currentState = SITTING;
+      changeToSitting();
       
       delay(1000);
     }
