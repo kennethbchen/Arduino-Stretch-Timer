@@ -10,8 +10,11 @@ const int greenPin = 11;
 const int bluePin = 10;
 
 const int motorPin = 4;
+const int buttonPin = 5;
 
 const int irInput = A0;
+
+
 
 // ----------------
 // --- SETTINGS ---
@@ -88,12 +91,13 @@ void setup() {
   pinMode(bluePin, OUTPUT);
 
   pinMode(motorPin, OUTPUT);
+  pinMode(buttonPin, INPUT_PULLUP);
 
   lastStretchTime = getTimeInSeconds(millis());
 }
 
 void loop() {
-    
+  
   // Get distance of the IR sensor
   dist.push(analogRead(irInput));
   
