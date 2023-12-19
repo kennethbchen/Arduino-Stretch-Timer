@@ -181,11 +181,16 @@ void loop() {
     matrix.writeDisplay();
   }
   
-  return;
-  
   #if PRINT_OUTPUT
-    Serial.print("Measurement ");
+    //Serial.print("Measurement ");
     Serial.print(String(dist_inches.average()) + " | ");
+
+    Serial.print("State " + String(currentState) + " | ");
+    Serial.print("Range Status " + String(results.range_status) + " | ");
+    Serial.println();
+
+
+
   #endif
   
   // ----------------
@@ -354,7 +359,7 @@ void setMotorOff() {
 }
 
 bool isSitting() {
-  return dist_inches.average() > 10 ;
+  return dist_inches.average() < 10 ;
 }
 
 float getTimeInSeconds(float milliseconds) {
