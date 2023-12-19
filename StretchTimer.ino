@@ -15,9 +15,11 @@
 // ----- PINS -----
 
 // LED Pins
-const int redPin = 12;
-const int greenPin = 11;
-const int bluePin = 10;
+// Pins 12 and 8 might not work on my arduino???
+
+const int redPin = 11;
+const int greenPin = 10;
+const int bluePin = 9;
 
 const int motorPin = 4;
 
@@ -36,7 +38,7 @@ const bool snoozeButtonPressedValue = false;
 #define PRINT_OUTPUT true
 
 // Debug mode shortens stretch times and durations
-#define DEBUG_MODE false
+#define DEBUG_MODE true
 
 // Interval between stretches and duration of stretches in seconds
 #if DEBUG_MODE
@@ -117,14 +119,14 @@ void setup() {
   
   
   // Setup pins
-  /*
+  
   pinMode(redPin, OUTPUT);
   pinMode(greenPin, OUTPUT);
   pinMode(bluePin, OUTPUT);
 
   pinMode(motorPin, OUTPUT);
   pinMode(snoozeButtonPin, INPUT_PULLUP);
-  */
+  
   
 
   // Initialize I2C bus.
@@ -367,8 +369,6 @@ float getTimeInSeconds(float milliseconds) {
 }
 
 void setLED(int red_light_value, int green_light_value, int blue_light_value) {
-
-  return;
   analogWrite(redPin, red_light_value * globalBrightnessMultiplier);
   analogWrite(greenPin, green_light_value * globalBrightnessMultiplier);
   analogWrite(bluePin, blue_light_value * globalBrightnessMultiplier);
