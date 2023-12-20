@@ -14,14 +14,7 @@
 // ----------------
 // ----- PINS -----
 
-// LED Pins
-// Pins 12 and 8 might not work on my arduino???
-
-const int redPin = 11;
-const int greenPin = 10;
-const int bluePin = 9;
-
-const int motorPin = 4;
+const int motorPin = 2;
 
 const int snoozeButtonPin = 5;
 
@@ -35,10 +28,10 @@ const bool snoozeButtonPressedValue = false;
 // --- SETTINGS ---
 
 // Don't leave on for actual use, it slows down arduino or something
-#define PRINT_OUTPUT true
+#define PRINT_OUTPUT false
 
 // Debug mode shortens stretch times and durations
-#define DEBUG_MODE true
+#define DEBUG_MODE false
 
 // Interval between stretches and duration of stretches in seconds
 #if DEBUG_MODE
@@ -101,13 +94,6 @@ VL53L4CD distanceSensor = VL53L4CD(&DEV_I2C, A1);
 Adafruit_7segment matrix = Adafruit_7segment();
 
 // ----------------
-// ----- UTIL -----
-
-const int red[] {255, 0, 0};
-const int green[] {0, 255, 0};
-const int blue[] {0, 0, 255};
-
-// ----------------
 // ----------------
 
 void setup() {
@@ -116,19 +102,13 @@ void setup() {
     Serial.begin(115200);
     Serial.println("Starting...");
   #endif
-  
-  
-  // Setup pins
-  
-  pinMode(redPin, OUTPUT);
-  pinMode(greenPin, OUTPUT);
-  pinMode(bluePin, OUTPUT);
+
 
   pinMode(motorPin, OUTPUT);
   pinMode(snoozeButtonPin, INPUT_PULLUP);
-  
-  
 
+  setMotorOff();
+  
   // Initialize I2C bus.
   DEV_I2C.begin();
 
@@ -160,16 +140,12 @@ void loop() {
   
   uint8_t NewDataReady = 0;
   VL53L4CD_Result_t results;
-  uint8_t status;
-
-  // Wait for distance sensor
-  do {
-    status = distanceSensor.VL53L4CD_CheckForDataReady(&NewDataReady);
-  } while (!NewDataReady);
-
-  
+  uint8_t status = distanceSensor.VL53L4CD_CheckForDataReady(&NewDataReady);
+ 
 
   if ((!status) && (NewDataReady != 0)) {
+    // Process Status
+
     // (Mandatory) Clear HW interrupt to restart measurements
     distanceSensor.VL53L4CD_ClearInterrupt();
 
@@ -179,10 +155,9 @@ void loop() {
     // Get distance of the sensor
     dist_inches.push(results.distance_mm / 25.4);
 
-    matrix.print(dist_inches.average());
-    matrix.writeDisplay();
+    
   }
-  
+
   #if PRINT_OUTPUT
     //Serial.print("Measurement ");
     Serial.print(String(dist_inches.average()) + " | ");
@@ -190,17 +165,12 @@ void loop() {
     Serial.print("State " + String(currentState) + " | ");
     Serial.print("Range Status " + String(results.range_status) + " | ");
     Serial.println();
-
-
-
   #endif
   
   // ----------------
   // ---- PAUSED ----
   if (currentState == PAUSED) {
     
-    setLED(255,0,255);
-
     if (isSitting()) {
       changeToSitting();
     }
@@ -210,10 +180,12 @@ void loop() {
   // ----------------
   // ---- SITTING ---
   if (currentState == SITTING) {
-    // Interpolate led color based on time till next stretch break
-    interpolateLED(green, 
-                   red, 
-                   min((float) (getTimeInSeconds(millis()) - lastStretchTime) / stretchInterval, 1), 0.5);
+
+    // Show time until next stretch
+    
+    matrix.print( int( ( currentStretchInterval - (getTimeInSeconds(millis()) - lastStretchTime )) / 60 ) * 100);
+    matrix.drawColon(true);
+    matrix.writeDisplay();
     
 
     // If it is time for a stretch break
@@ -233,8 +205,6 @@ void loop() {
   // --- REMINDING --
   if (currentState == REMINDING) {
 
-    setLED(255, 0, 0);
-
     // Time to stretch, motor on
   
     // Motor has been on or off for one second, toggle motor
@@ -242,11 +212,19 @@ void loop() {
   
        motorActionTime = getTimeInSeconds(millis());
        
-       // Toggle Motor
+       // Toggle Motor and Matrix
+       // TODO rename stuff because it's more than the motor
        if (motorOn) {
+          matrix.print("") ;
+          matrix.writeDisplay();
+
           motorOn = false;
           digitalWrite(motorPin, LOW);
        } else {
+          
+          matrix.print(0.00);
+          matrix.writeDisplay();
+
           motorOn = true;
           digitalWrite(motorPin, HIGH);
        }
@@ -284,13 +262,11 @@ void loop() {
   // ----------------
   // -- STRETCHING --
   if (currentState == STRETCHING){
-    
-    interpolateLED(blue, 
-                       green, 
-                       min((float) (getTimeInSeconds(millis()) - stretchStart) / stretchDuration, 1),
-                       0.5);
   
     // Check if time stretching is at least the stretch duration
+
+    matrix.print(stretchDuration - (getTimeInSeconds(millis()) - stretchStart));
+    matrix.writeDisplay();
 
     if (isSitting()) {
 
@@ -300,7 +276,6 @@ void loop() {
     } else if( getTimeInSeconds(millis()) - stretchStart > stretchDuration) {
   
       // Stretch Successful, reset
-      setLED(0, 0, 0);
 
       currentStretchInterval = stretchInterval;
   
@@ -334,6 +309,9 @@ void changeToSitting() {
 void changeToPaused() {
   currentState = PAUSED;
   timePaused = getTimeInSeconds(millis());
+
+  matrix.print("");
+  matrix.writeDisplay();
 }
 
 void changeToReminding() {
@@ -354,6 +332,7 @@ void changeToStretching() {
 // ----------------------
 // --- UTIL FUNCTIONS ---
 
+
 void setMotorOff() {
   // Motor off
   motorActionTime = -1;
@@ -361,23 +340,9 @@ void setMotorOff() {
 }
 
 bool isSitting() {
-  return dist_inches.average() < 10 ;
+  return dist_inches.average() < 15 ;
 }
 
 float getTimeInSeconds(float milliseconds) {
   return milliseconds / 1000;
-}
-
-void setLED(int red_light_value, int green_light_value, int blue_light_value) {
-  analogWrite(redPin, red_light_value * globalBrightnessMultiplier);
-  analogWrite(greenPin, green_light_value * globalBrightnessMultiplier);
-  analogWrite(bluePin, blue_light_value * globalBrightnessMultiplier);
-}
-
-void interpolateLED(int from[], int to[], float proportion, float brightness) {
-  if ( proportion < 1.0 ) {
-    setLED(  (int) ( ( ( from[0] * (1 - proportion) ) + (to[0] * proportion) ) * brightness ) ,
-             (int) ( ( ( from[1] * (1 - proportion) ) + (to[1] * proportion) ) * brightness ) ,
-             (int) ( ( ( from[2] * (1 - proportion) ) + (to[2] * proportion) ) * brightness ) );
-  }
 }
