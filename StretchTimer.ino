@@ -27,10 +27,10 @@ const bool snoozeButtonPressedValue = false;
 // --- SETTINGS ---
 
 // Don't leave on for actual use, it slows down arduino or something
-#define PRINT_OUTPUT false
+#define PRINT_OUTPUT true
 
 // Debug mode shortens stretch times and durations
-#define DEBUG_MODE false
+#define DEBUG_MODE true
 
 // Interval between stretches and duration of stretches in seconds
 #if DEBUG_MODE
@@ -67,7 +67,7 @@ const numSittingDisplayStates = 3;
 
 State currentState = SITTING;
 
-SittingDisplayState displayState = STREAK;
+SittingDisplayState displayState = TIMER;
 
 
 bool motorOn = false;
@@ -188,6 +188,10 @@ void loop() {
   // ---- PAUSED ----
   if (currentState == PAUSED) {
     
+    matrix.clear();
+    matrix.print("");
+    matrix.writeDisplay();
+
     if (isSitting()) {
       changeToSitting();
     }
@@ -230,14 +234,14 @@ void loop() {
        // Toggle Motor and Matrix
        // TODO rename stuff because it's more than the motor
        if (motorOn) {
-          matrix.print("") ;
+          matrix.println("") ;
           matrix.writeDisplay();
 
           motorOn = false;
           digitalWrite(motorPin, LOW);
        } else {
           
-          matrix.print(0.00);
+          matrix.println(0.00);
           matrix.writeDisplay();
 
           motorOn = true;
@@ -280,7 +284,7 @@ void loop() {
   
     // Check if time stretching is at least the stretch duration
 
-    matrix.print(stretchDuration - (getTimeInSeconds(millis()) - stretchStart));
+    matrix.println(stretchDuration - (getTimeInSeconds(millis()) - stretchStart));
     matrix.writeDisplay();
 
     if (isSitting()) {
@@ -289,7 +293,7 @@ void loop() {
       changeToReminding();
       
     } else if( getTimeInSeconds(millis()) - stretchStart > stretchDuration) {
-  
+
       // Stretch Successful, reset
 
       currentStretchInterval = stretchInterval;
@@ -298,6 +302,10 @@ void loop() {
       lastStretchTime = getTimeInSeconds(millis());
 
       changeToSitting();
+
+      matrix.clear();
+      matrix.println("GOOD");
+      matrix.writeDisplay();
       
       delay(1000);
     }
@@ -323,9 +331,6 @@ void changeToSitting() {
 void changeToPaused() {
   currentState = PAUSED;
   timePaused = getTimeInSeconds(millis());
-
-  matrix.print("");
-  matrix.writeDisplay();
 }
 
 void changeToReminding() {
@@ -350,17 +355,19 @@ void setDisplay() {
 
   switch (displayState){
     case STREAK:
-      matrix.print(9999);
+      matrix.println(9999);
       matrix.writeDisplay();
       break;
     case TIMER:
-      matrix.print( int( ( currentStretchInterval - (getTimeInSeconds(millis()) - lastStretchTime )) / 60 ) * 100);
+
+      int secondsLeft = (int( ceil( currentStretchInterval - (getTimeInSeconds(millis()) - lastStretchTime ) ) ) );
+      matrix.println(secondsLeft);
       matrix.drawColon(true);
       matrix.writeDisplay();
       break;
     case OFF:
     default:
-      matrix.print("");
+      matrix.println("");
       matrix.writeDisplay();
       break;
   }
