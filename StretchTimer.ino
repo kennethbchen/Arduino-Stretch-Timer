@@ -14,13 +14,13 @@
 // ----------------
 // ----- PINS -----
 
-// Digital
 const int motorPin = 2;
 
-// Digital
-const int snoozeButtonPin = 5;
+const int displayButtonPin = 9;
+const int snoozeButtonPin = 12;
 
-// Because of Pin type INPUT_PULLUP, when the button is pressed, its read value is false
+// When the button is pressed, its read value is false because of Pin type INPUT_PULLUP
+const bool displayButtonPressedValue = false;
 const bool snoozeButtonPressedValue = false;
 
 // ----------------
@@ -56,7 +56,19 @@ enum State {
   STRETCHING
 };
 
+enum SittingDisplayState {
+  STREAK,
+  TIMER,
+  OFF
+}
+
+const numSittingDisplayStates = 3;
+
+
 State currentState = SITTING;
+
+SittingDisplayState displayState = STREAK;
+
 
 bool motorOn = false;
 
@@ -75,9 +87,10 @@ float timePaused = 0;
 // Seconds
 float motorActionTime = -1;
 
-// Running average of IR measurements
-// Used to reduce noise in IR input
-// Slows down significantly if printing to serial
+bool displayButtonPressed = false;
+
+// Running average of distance measurements
+// Used to reduce noise in distance measurement
 AverageValue<double> dist_inches(1);
 
 #define DEV_I2C Wire
@@ -91,13 +104,14 @@ Adafruit_7segment matrix = Adafruit_7segment();
 
 void setup() {
 
-  #if PRINT_OUTPUT
-    Serial.begin(115200);
-    Serial.println("Starting...");
-  #endif
+  
+  Serial.begin(115200);
+  Serial.println("Starting...");
 
 
   pinMode(motorPin, OUTPUT);
+
+  pinMode(displayButtonPin, INPUT_PULLUP);
   pinMode(snoozeButtonPin, INPUT_PULLUP);
 
   setMotorOff();
@@ -160,6 +174,16 @@ void loop() {
     Serial.println();
   #endif
   
+  if(!displayButtonPressed && digitalRead(displayButtonPin) == displayButtonPressedValue) {
+    displayButtonPressed = true;
+
+    displayState = (displayState + 1) % (numSittingDisplayStates);
+  } else if (digitalRead(displayButtonPin) != displayButtonPressedValue) {
+    displayButtonPressed = false;
+  }
+
+
+
   // ----------------
   // ---- PAUSED ----
   if (currentState == PAUSED) {
@@ -176,9 +200,7 @@ void loop() {
 
     // Show time until next stretch
     
-    matrix.print( int( ( currentStretchInterval - (getTimeInSeconds(millis()) - lastStretchTime )) / 60 ) * 100);
-    matrix.drawColon(true);
-    matrix.writeDisplay();
+    setDisplay();
     
 
     // If it is time for a stretch break
@@ -324,6 +346,25 @@ void changeToStretching() {
 // ----------------------
 // --- UTIL FUNCTIONS ---
 
+void setDisplay() {
+
+  switch (displayState){
+    case STREAK:
+      matrix.print(9999);
+      matrix.writeDisplay();
+      break;
+    case TIMER:
+      matrix.print( int( ( currentStretchInterval - (getTimeInSeconds(millis()) - lastStretchTime )) / 60 ) * 100);
+      matrix.drawColon(true);
+      matrix.writeDisplay();
+      break;
+    case OFF:
+    default:
+      matrix.print("");
+      matrix.writeDisplay();
+      break;
+  }
+}
 
 void setMotorOff() {
   // Motor off
