@@ -14,14 +14,13 @@
 // ----------------
 // ----- PINS -----
 
+// Digital
 const int motorPin = 2;
 
+// Digital
 const int snoozeButtonPin = 5;
 
-const int irInput = A0;
-
-// Because of Pin type INPUT_PULLUP, when the button is pressed,
-// Its read value is false
+// Because of Pin type INPUT_PULLUP, when the button is pressed, its read value is false
 const bool snoozeButtonPressedValue = false;
 
 // ----------------
@@ -46,12 +45,6 @@ const float snoozeStretchInterval = 5 * 60;
 
 // Seconds
 const float motorCycleTime = 1.12;
-
-// Value from 0 to 1
-// Brightness multiplier for LED
-const float globalBrightnessMultiplier = 0.2;
-
-
 
 // ----------------
 // ---- STATE -----
@@ -289,7 +282,6 @@ void loop() {
     
   }
   
-    
 }
 
 #pragma region STATE_METHODS
