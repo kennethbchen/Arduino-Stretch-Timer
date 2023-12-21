@@ -231,6 +231,7 @@ void loop() {
   
        motorActionTime = getTimeInSeconds(millis());
        
+       
        // Toggle Motor and Matrix
        // TODO rename stuff because it's more than the motor
        if (motorOn) {
@@ -241,7 +242,8 @@ void loop() {
           digitalWrite(motorPin, LOW);
        } else {
           
-          matrix.println(0.00);
+          matrix.println("0000");
+          matrix.drawColon(true);
           matrix.writeDisplay();
 
           motorOn = true;
@@ -284,8 +286,7 @@ void loop() {
   
     // Check if time stretching is at least the stretch duration
 
-    matrix.println(stretchDuration - (getTimeInSeconds(millis()) - stretchStart));
-    matrix.writeDisplay();
+    displayMinSec(stretchDuration - (getTimeInSeconds(millis()) - stretchStart));
 
     if (isSitting()) {
 
@@ -361,16 +362,30 @@ void setDisplay() {
     case TIMER:
 
       int secondsLeft = (int( ceil( currentStretchInterval - (getTimeInSeconds(millis()) - lastStretchTime ) ) ) );
-      matrix.println(secondsLeft);
-      matrix.drawColon(true);
-      matrix.writeDisplay();
+      displayMinSec(secondsLeft);
       break;
     case OFF:
     default:
-      matrix.println("");
+      matrix.clear();
       matrix.writeDisplay();
       break;
   }
+}
+
+void displayMinSec(int seconds) {
+
+      // Doesn't work fully for 3 digit minutes
+
+      int minutesPlace = int(seconds / 60);
+      int secondsPlace = int(seconds % 60);
+
+      // 0, 1, 3, 4 is correct maybe because the colon is 2?
+      matrix.writeDigitNum(0, minutesPlace / 10);
+      matrix.writeDigitNum(1, minutesPlace % 10);
+      matrix.drawColon(true);
+      matrix.writeDigitNum(3, secondsPlace / 10);
+      matrix.writeDigitNum(4, secondsPlace % 10);
+      matrix.writeDisplay();
 }
 
 void setMotorOff() {
