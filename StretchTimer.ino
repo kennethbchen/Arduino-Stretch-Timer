@@ -30,7 +30,7 @@ const bool snoozeButtonPressedValue = false;
 #define PRINT_OUTPUT false
 
 // Debug mode shortens stretch times and durations
-#define DEBUG_MODE true
+#define DEBUG_MODE false
 
 // Interval between stretches and duration of stretches in seconds
 #if DEBUG_MODE
@@ -173,16 +173,6 @@ void loop() {
     Serial.print("Range Status " + String(results.range_status) + " | ");
     Serial.println();
   #endif
-  
-  if(!displayButtonPressed && digitalRead(displayButtonPin) == displayButtonPressedValue) {
-    displayButtonPressed = true;
-
-    displayState = (displayState + 1) % (numSittingDisplayStates);
-  } else if (digitalRead(displayButtonPin) != displayButtonPressedValue) {
-    displayButtonPressed = false;
-  }
-
-
 
   // ----------------
   // ---- PAUSED ----
@@ -201,6 +191,18 @@ void loop() {
   // ----------------
   // ---- SITTING ---
   if (currentState == SITTING) {
+    
+
+  // Change display mode if needed
+  if(!displayButtonPressed && digitalRead(displayButtonPin) == displayButtonPressedValue) {
+    displayButtonPressed = true;
+
+    displayState = (displayState + 1) % (numSittingDisplayStates);
+
+    Serial.println(displayState);
+  } else if (digitalRead(displayButtonPin) != displayButtonPressedValue) {
+    displayButtonPressed = false;
+  }
 
     // Show time until next stretch
     
@@ -354,19 +356,22 @@ void changeToStretching() {
 
 void setDisplay() {
 
-  switch (displayState){
+
+  switch (int(displayState)){
+    case OFF: // I don't know why, but if OFF isn't the first case, it doesn't ever get run...?
+      matrix.print("");
+      matrix.writeDisplay();
+      break;
     case STREAK:
       matrix.println(9999);
       matrix.writeDisplay();
       break;
     case TIMER:
-
       int secondsLeft = (int( ceil( currentStretchInterval - (getTimeInSeconds(millis()) - lastStretchTime ) ) ) );
       displayMinSec(secondsLeft);
       break;
-    case OFF:
     default:
-      matrix.clear();
+      matrix.print("");
       matrix.writeDisplay();
       break;
   }
