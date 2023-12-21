@@ -27,7 +27,7 @@ const bool snoozeButtonPressedValue = false;
 // --- SETTINGS ---
 
 // Don't leave on for actual use, it slows down arduino or something
-#define PRINT_OUTPUT true
+#define PRINT_OUTPUT false
 
 // Debug mode shortens stretch times and durations
 #define DEBUG_MODE true
@@ -305,7 +305,7 @@ void loop() {
       changeToSitting();
 
       matrix.clear();
-      matrix.println("GOOD");
+      matrix.println("Good");
       matrix.writeDisplay();
       
       delay(1000);
