@@ -30,7 +30,7 @@ const bool snoozeButtonPressedValue = false;
 #define PRINT_OUTPUT false
 
 // Debug mode shortens stretch times and durations
-#define DEBUG_MODE false
+#define DEBUG_MODE true
 
 // Interval between stretches and duration of stretches in seconds
 #if DEBUG_MODE
@@ -88,6 +88,9 @@ float timePaused = 0;
 float motorActionTime = -1;
 
 bool displayButtonPressed = false;
+
+// How many stretches have been done
+int stretchStreak = 0;
 
 // Running average of distance measurements
 // Used to reduce noise in distance measurement
@@ -309,6 +312,8 @@ void loop() {
       matrix.clear();
       matrix.println("Good");
       matrix.writeDisplay();
+
+      stretchStreak += 1;
       
       delay(1000);
     }
@@ -363,7 +368,7 @@ void setDisplay() {
       matrix.writeDisplay();
       break;
     case STREAK:
-      matrix.println(9999);
+      matrix.println(stretchStreak);
       matrix.writeDisplay();
       break;
     case TIMER:
