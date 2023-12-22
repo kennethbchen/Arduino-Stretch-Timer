@@ -26,7 +26,6 @@ const bool snoozeButtonPressedValue = false;
 // ----------------
 // --- SETTINGS ---
 
-// Don't leave on for actual use, it slows down arduino or something
 #define PRINT_OUTPUT false
 
 // Debug mode shortens stretch times and durations
@@ -168,10 +167,15 @@ void loop() {
 
   #if PRINT_OUTPUT
     //Serial.print("Measurement ");
-    Serial.print(String(dist_inches.average()) + " | ");
+    Serial.print(String(dist_inches.average()));
+    Serial.print(" | ");
 
-    Serial.print("State " + String(currentState) + " | ");
-    Serial.print("Range Status " + String(results.range_status) + " | ");
+    Serial.print("State ");
+    Serial.print(currentState);
+    Serial.print(" | ");
+    Serial.print("Range Status ");
+    Serial.print(String(results.range_status));
+    Serial.print(" | ");
     Serial.println();
   #endif
 
@@ -180,7 +184,6 @@ void loop() {
   if (currentState == PAUSED) {
     
     matrix.clear();
-    matrix.print("");
     matrix.writeDisplay();
 
     if (isSitting()) {
@@ -200,7 +203,6 @@ void loop() {
 
     displayState = (displayState + 1) % (numSittingDisplayStates);
 
-    Serial.println(displayState);
   } else if (digitalRead(displayButtonPin) != displayButtonPressedValue) {
     displayButtonPressed = false;
   }
@@ -238,15 +240,20 @@ void loop() {
        // Toggle Motor and Matrix
        // TODO rename stuff because it's more than the motor
        if (motorOn) {
-          matrix.println("") ;
+          matrix.clear();
           matrix.writeDisplay();
 
           motorOn = false;
           digitalWrite(motorPin, LOW);
        } else {
           
-          matrix.println("0000");
+          matrix.writeDigitNum(0, 0);
+          matrix.writeDigitNum(1, 0);
           matrix.drawColon(true);
+          matrix.writeDigitNum(3, 0);
+          matrix.writeDigitNum(4, 0);
+          matrix.writeDisplay();
+
           matrix.writeDisplay();
 
           motorOn = true;
@@ -308,7 +315,9 @@ void loop() {
       changeToSitting();
 
       matrix.clear();
-      matrix.println("Good");
+
+      // https://www.baldengineer.com/arduino-f-macro.html
+      matrix.println( F("Good") );
       matrix.writeDisplay();
 
       stretchStreak += 1;
@@ -360,12 +369,7 @@ void changeToStretching() {
 void setDisplay() {
 
 
-  switch (int(displayState)){
-    case OFF: { // I don't know why, but if OFF isn't the first case, it doesn't ever get run...?
-      matrix.print("");
-      matrix.writeDisplay();
-      break;
-    }
+  switch (displayState){
     case STREAK: {
       matrix.println(stretchStreak);
       matrix.writeDisplay();
@@ -376,8 +380,13 @@ void setDisplay() {
       displayMinSec(secondsLeft);
       break;
     }
+    case OFF: {
+      matrix.clear();
+      matrix.writeDisplay();
+      break;
+    }
     default: {
-      matrix.print("");
+      matrix.clear();
       matrix.writeDisplay();
       break;
     }
