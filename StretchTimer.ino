@@ -26,7 +26,7 @@ const bool snoozeButtonPressedValue = false;
 // ----------------
 // --- SETTINGS ---
 
-#define PRINT_OUTPUT false
+#define PRINT_STATE false
 
 // Debug mode shortens stretch times and durations
 #define DEBUG_MODE false
@@ -104,10 +104,8 @@ Adafruit_7segment matrix = Adafruit_7segment();
 
 void setup() {
 
-  
   Serial.begin(115200);
   Serial.println("Starting...");
-
 
   pinMode(motorPin, OUTPUT);
 
@@ -165,18 +163,18 @@ void loop() {
     
   }
 
-  #if PRINT_OUTPUT
-    //Serial.print("Measurement ");
-    Serial.print(String(dist_inches.average()));
-    Serial.print(" | ");
+  #if PRINT_STATE
+  //Serial.print("Measurement ");
+  Serial.print(String(dist_inches.average()));
+  Serial.print(" | ");
 
-    Serial.print("State ");
-    Serial.print(currentState);
-    Serial.print(" | ");
-    Serial.print("Range Status ");
-    Serial.print(String(results.range_status));
-    Serial.print(" | ");
-    Serial.println();
+  Serial.print("State ");
+  Serial.print(currentState);
+  Serial.print(" | ");
+  Serial.print("Range Status ");
+  Serial.print(String(results.range_status));
+  Serial.print(" | ");
+  Serial.println();
   #endif
 
   // ----------------
