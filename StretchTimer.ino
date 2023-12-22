@@ -30,7 +30,7 @@ const bool snoozeButtonPressedValue = false;
 #define PRINT_OUTPUT false
 
 // Debug mode shortens stretch times and durations
-#define DEBUG_MODE true
+#define DEBUG_MODE false
 
 // Interval between stretches and duration of stretches in seconds
 #if DEBUG_MODE
@@ -60,15 +60,13 @@ enum SittingDisplayState {
   STREAK,
   TIMER,
   OFF
-}
+};
 
-const numSittingDisplayStates = 3;
-
+const int numSittingDisplayStates = 3;
 
 State currentState = SITTING;
 
-SittingDisplayState displayState = TIMER;
-
+int displayState = TIMER;
 
 bool motorOn = false;
 
@@ -363,22 +361,26 @@ void setDisplay() {
 
 
   switch (int(displayState)){
-    case OFF: // I don't know why, but if OFF isn't the first case, it doesn't ever get run...?
+    case OFF: { // I don't know why, but if OFF isn't the first case, it doesn't ever get run...?
       matrix.print("");
       matrix.writeDisplay();
       break;
-    case STREAK:
+    }
+    case STREAK: {
       matrix.println(stretchStreak);
       matrix.writeDisplay();
       break;
-    case TIMER:
+    }
+    case TIMER: {
       int secondsLeft = (int( ceil( currentStretchInterval - (getTimeInSeconds(millis()) - lastStretchTime ) ) ) );
       displayMinSec(secondsLeft);
       break;
-    default:
+    }
+    default: {
       matrix.print("");
       matrix.writeDisplay();
       break;
+    }
   }
 }
 
