@@ -151,6 +151,8 @@ void loop() {
  
 
   if ((!status) && (NewDataReady != 0)) {
+
+    
     // Process Status
 
     // (Mandatory) Clear HW interrupt to restart measurements
@@ -158,12 +160,18 @@ void loop() {
 
     // Read measured distance. RangeStatus = 0 means valid data
     distanceSensor.VL53L4CD_GetResult(&results);
-    
-    // Get distance of the sensor
-    dist_inches.push(results.distance_mm / 25.4);
 
+    if (results.range_status == 0) {
+      // Valid Results: Get distance of the sensor
+      dist_inches.push(results.distance_mm / 25.4);
+    } else {
+      // Invalid Results: Assume not sitting (push arbitrary value out of sitting range)
+      dist_inches.push(20.0);
+    }
     
   }
+
+  
 
   #if PRINT_STATE
   //Serial.print("Measurement ");
