@@ -89,6 +89,8 @@ bool displayButtonPressed = false;
 // How many stretches have been done
 int stretchStreak = 0;
 
+bool snoozing = false;
+
 // Running average of distance measurements
 // Used to reduce noise in distance measurement
 AverageValue<double> dist_inches(1);
@@ -217,7 +219,16 @@ void loop() {
       
     } else if (!isSitting()) {
       
-      changeToPaused();
+      if (!snoozing) {
+
+        // Not currently snoozing, normal operation
+        changeToPaused();
+      } else {
+
+        // Trying to end a snooze early, go to stretching
+        changeToStretching();
+      }
+      
       
     }
     
@@ -272,6 +283,8 @@ void loop() {
         currentStretchInterval *= 0.3;
       } else {
         // Snooze has not been pressed before this cycle
+
+        snoozing = true;
         currentStretchInterval = snoozeStretchInterval;
       }
       
@@ -298,13 +311,22 @@ void loop() {
 
     if (isSitting()) {
 
-      // Stretch hasn't been completed yet
-      changeToReminding();
+      if (!snoozing) {
+        // Stretch hasn't been completed yet
+        changeToReminding();
+      } {
+        // Back to snoozing
+        // Technically we aren't pausing the stretch timer in this state so 
+        // the stretch timer is counting down right now but that shouldn't really matter?
+        changeToSitting();
+      }
+      
       
     } else if( getTimeInSeconds(millis()) - stretchStart > stretchDuration) {
 
       // Stretch Successful, reset
 
+      snoozing = false;
       currentStretchInterval = stretchInterval;
   
       // Reset the timer
