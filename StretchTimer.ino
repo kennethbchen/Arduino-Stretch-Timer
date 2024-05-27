@@ -444,7 +444,7 @@ void setMotorOff() {
 }
 
 bool isSitting() {
-  return dist_inches.average() < 15 ;
+  return dist_inches.average() < 18 ;
 }
 
 float getTimeInSeconds(float milliseconds) {
