@@ -8,9 +8,6 @@
 // Distance Sensor
 #include <vl53l4cd_class.h>
 
-//https://gitlab.com/yesbotics/libs/arduino/average-value
-#include <AverageValue.h>
-
 // ----------------
 // ----- PINS -----
 
@@ -93,7 +90,7 @@ bool snoozing = false;
 
 // Running average of distance measurements
 // Used to reduce noise in distance measurement
-AverageValue<double> dist_inches(1);
+float dist_inches = 0;
 
 #define DEV_I2C Wire
 
@@ -106,8 +103,10 @@ Adafruit_7segment matrix = Adafruit_7segment();
 
 void setup() {
 
+  #if DEBUG_MODE
   Serial.begin(115200);
   Serial.println("Starting...");
+  #endif
 
   pinMode(motorPin, OUTPUT);
 
@@ -145,10 +144,10 @@ void setup() {
 void loop() {
   
   
+
   uint8_t NewDataReady = 0;
   VL53L4CD_Result_t results;
   uint8_t status = distanceSensor.VL53L4CD_CheckForDataReady(&NewDataReady);
- 
 
   if ((!status) && (NewDataReady != 0)) {
 
@@ -163,10 +162,10 @@ void loop() {
 
     if (results.range_status == 0) {
       // Valid Results: Get distance of the sensor
-      dist_inches.push(results.distance_mm / 25.4);
+      dist_inches = results.distance_mm / 25.4;
     } else {
       // Invalid Results: Assume not sitting (push arbitrary value out of sitting range)
-      dist_inches.push(20.0);
+      dist_inches = 20.0;
     }
     
   }
@@ -444,7 +443,7 @@ void setMotorOff() {
 }
 
 bool isSitting() {
-  return dist_inches.average() < 18 ;
+  return dist_inches < 18 ;
 }
 
 float getTimeInSeconds(float milliseconds) {
